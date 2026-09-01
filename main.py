@@ -56,6 +56,16 @@ class RestartSession(Exception):
     appointment"), so abandoning the session here is safe."""
 
 
+class SessionExpired(Exception):
+    """Raised when ICBC has silently logged the session out mid-run --
+    seen live: a long-running check landed back on the pre-login home page
+    (same URL/title as before logging in) instead of the logged-in
+    "Your upcoming appointments" tab it expected. This is routine
+    housekeeping on ICBC's end, not a real technical failure, so it's
+    handled distinctly from a generic Exception: a quiet re-login instead
+    of an alarming "Hit an error" Telegram alert."""
+
+
 def log(msg: str):
     print(f"[{datetime.now().isoformat(timespec='seconds')}] {msg}", flush=True)
 
@@ -223,8 +233,12 @@ def run_session(state: BotState):
 
             try:
                 current_date = get_current_appointment_date(driver)
-            except Exception:
+            except Exception as e:
                 dump_debug_info(driver, "get_current_appointment_date_failed")
+                if BOOK_A_ROAD_TEST_HOME in driver.current_url:
+                    # Bounced back to the pre-login page -- the session
+                    # expired, not a real failure. See SessionExpired.
+                    raise SessionExpired() from e
                 raise
 
             # Recomputed every check: whichever is later between the fixed
@@ -390,6 +404,9 @@ def main():
         while True:
             try:
                 run_session(state)
+            except SessionExpired:
+                log("ICBC session expired -- logging back in...")
+                time.sleep(2)
             except RestartSession:
                 log("Restarting with a fresh session...")
                 time.sleep(5)
