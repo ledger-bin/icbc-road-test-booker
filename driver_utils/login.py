@@ -5,7 +5,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 
 from CONFIG import DRIVERS_LAST_NAME, KEYWORD, LICENCE_NUMBER
-from driver_utils.utils import wait_for_page_to_load
+from driver_utils.utils import safe_click, wait_for_page_to_load
 
 '''XPATH SELECTORS (text-based — more resilient to CSS/class re-skins than
 class names, which ICBC has changed at least once already)'''
@@ -32,7 +32,7 @@ def perform_login(driver: webdriver.Chrome):
     wait_for_page_to_load(driver, By.XPATH, NEXT_BUTTON_XPATH)
 
     # Click the next button on home page to be brought to login form
-    driver.find_element(By.XPATH, NEXT_BUTTON_XPATH).click()
+    safe_click(driver, driver.find_element(By.XPATH, NEXT_BUTTON_XPATH))
 
     # Wait for page to load
     wait_for_page_to_load(driver, By.XPATH, SIGN_IN_BUTTON_XPATH)
@@ -43,7 +43,7 @@ def perform_login(driver: webdriver.Chrome):
     driver.find_element(By.XPATH, KEYWORD_INPUT_XPATH).send_keys(KEYWORD)
 
     # Check the agree to terms checkbox
-    driver.find_element(By.CSS_SELECTOR, AGREE_TO_TERMS_CHECKBOX_CSS_SELECTOR).click()
+    safe_click(driver, driver.find_element(By.CSS_SELECTOR, AGREE_TO_TERMS_CHECKBOX_CSS_SELECTOR))
 
     # Click sign in
-    driver.find_element(By.XPATH, SIGN_IN_BUTTON_XPATH).click()
+    safe_click(driver, driver.find_element(By.XPATH, SIGN_IN_BUTTON_XPATH))

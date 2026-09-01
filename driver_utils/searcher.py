@@ -16,6 +16,7 @@ from CONSTANTS import GET_AVAILABLE_APPOINTMENTS
 from driver_utils.utils import (
     filter_perf_logs,
     get_all_elements_of_web_element,
+    safe_click,
     wait_for_page_to_load,
 )
 
@@ -61,7 +62,7 @@ def search_for_bookings(driver: webdriver.Chrome):
 
     # Have to manually add delay and some inputs to display autocomplete box
     time.sleep(1)
-    location_field.click()
+    safe_click(driver, location_field)
     location_field.send_keys(Keys.SPACE)
     location_field.send_keys(Keys.BACK_SPACE)
 
@@ -83,10 +84,10 @@ def search_for_bookings(driver: webdriver.Chrome):
     autocomplete_results = get_all_elements_of_web_element(autocomplete)
     if len(autocomplete_results) == 0:
         raise Exception(f"No location found for: {LOCATION}")
-    autocomplete_results[0].click()
+    safe_click(driver, autocomplete_results[0])
 
     # Click the search button
-    driver.find_element(By.XPATH, SEARCH_BUTTON_XPATH).click()
+    safe_click(driver, driver.find_element(By.XPATH, SEARCH_BUTTON_XPATH))
 
 
 def parse_icbc_locations_results(driver: webdriver.Chrome) -> Dict[str, WebElement]:
@@ -164,7 +165,7 @@ def get_icbc_location_availability(
     Returns:
         List[Dict]: List of availability objects
     """
-    element.click()
+    safe_click(driver, element)
     time.sleep(3)
     return read_availability_from_open_dialog(driver)
 
@@ -175,4 +176,4 @@ def click_back_to_location_results_page(driver: webdriver.Chrome):
     Args:
         driver (webdriver.Chrome): Chrome web driver
     """
-    driver.find_element(By.CSS_SELECTOR, ICBC_LOCATION_RESULTS_PAGE_BACK_BUTTON_CSS_SELECTOR).click()
+    safe_click(driver, driver.find_element(By.CSS_SELECTOR, ICBC_LOCATION_RESULTS_PAGE_BACK_BUTTON_CSS_SELECTOR))

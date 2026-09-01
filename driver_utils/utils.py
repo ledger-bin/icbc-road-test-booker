@@ -9,7 +9,7 @@ from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import ElementClickInterceptedException, TimeoutException
 from selenium.webdriver.remote.webelement import WebElement
 
 DEBUG_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "debug")
@@ -53,20 +53,37 @@ def dump_debug_info(driver: webdriver.Chrome, tag: str) -> None:
     )
 
 
-def wait_for_page_to_load(driver: webdriver.Chrome, by: By, selector: str, delay: int = 10):
+def wait_for_page_to_load(driver: webdriver.Chrome, by: By, selector: str, delay: int = 20):
     """Waits for page to load
 
     Args:
         driver (webdriver.Chrome): Driver
         by (By): Selenium locator strategy
         selector (str): Selector string matching the locator strategy
-        delay (int): Delay to wait for before raising Exception. Default of 10 seconds
+        delay (int): Delay to wait for before raising Exception. Default of 20
+            seconds -- bumped up from an original 10s after intermittent
+            timeouts showed up running on Render's shared compute, which is
+            sometimes slower/more variable than local testing.
 
     """
     try:
         WebDriverWait(driver, delay).until(EC.presence_of_element_located((by, selector)))
     except TimeoutException:
         raise TimeoutException(f"Could not load page in time for delay: {delay}s (waiting on {by}={selector})")
+
+
+def safe_click(driver: webdriver.Chrome, element: WebElement):
+    """Clicks an element, falling back to a JS-executed click if a normal
+    click is intercepted by something overlapping it -- e.g. a third-party
+    survey popup (seen live: a Qualtrics feedback overlay sat on top of
+    ICBC's reschedule-confirm dialog and ate a real click). A JS click
+    triggers the element's click handler directly, bypassing whatever's
+    visually on top of it.
+    """
+    try:
+        element.click()
+    except ElementClickInterceptedException:
+        driver.execute_script("arguments[0].click();", element)
 
 
 def get_all_elements_of_web_element(element: WebElement) -> List[WebElement]:

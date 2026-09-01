@@ -24,7 +24,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
 
-from driver_utils.utils import dump_debug_info, wait_for_page_to_load
+from driver_utils.utils import dump_debug_info, safe_click, wait_for_page_to_load
 
 # --- Verified against the live site ---
 REVIEW_APPOINTMENT_BUTTON_XPATH = '//button[normalize-space(.)="Review Appointment"]'
@@ -124,21 +124,21 @@ def click_appointment_slot(driver: webdriver.Chrome, appointment: Dict):
 
     slot_xpath = f'./following::button[normalize-space(.)="{time_label}"][1]'
     slot_button: WebElement = heading.find_element(By.XPATH, slot_xpath)
-    slot_button.click()
+    safe_click(driver, slot_button)
 
 
 def click_review_appointment(driver: webdriver.Chrome):
     """Clicks "Review Appointment", which opens the "Would you like to
     book this appointment?" summary dialog."""
     wait_for_page_to_load(driver, By.XPATH, REVIEW_APPOINTMENT_BUTTON_XPATH)
-    driver.find_element(By.XPATH, REVIEW_APPOINTMENT_BUTTON_XPATH).click()
+    safe_click(driver, driver.find_element(By.XPATH, REVIEW_APPOINTMENT_BUTTON_XPATH))
 
 
 def click_next_on_confirm_dialog(driver: webdriver.Chrome):
     """Clicks "Next" on the "Would you like to book this appointment?"
     dialog, which leads to the verification-method screen."""
     wait_for_page_to_load(driver, By.XPATH, NEXT_ON_CONFIRM_DIALOG_XPATH)
-    driver.find_element(By.XPATH, NEXT_ON_CONFIRM_DIALOG_XPATH).click()
+    safe_click(driver, driver.find_element(By.XPATH, NEXT_ON_CONFIRM_DIALOG_XPATH))
 
 
 def cancel_current_dialog(driver: webdriver.Chrome):
@@ -147,7 +147,7 @@ def cancel_current_dialog(driver: webdriver.Chrome):
     timeout paths during auto-booking -- those abandon the session
     entirely instead of navigating back through several screens (see
     main.py's RestartSession); kept here for reference/manual use."""
-    driver.find_element(By.XPATH, CANCEL_CONFIRM_DIALOG_XPATH).click()
+    safe_click(driver, driver.find_element(By.XPATH, CANCEL_CONFIRM_DIALOG_XPATH))
 
 
 def select_verification_method_and_send(driver: webdriver.Chrome, method: str):
@@ -162,9 +162,9 @@ def select_verification_method_and_send(driver: webdriver.Chrome, method: str):
     label = "SMS" if method.strip().lower() == "sms" else "Email"
     method_xpath = f'//*[contains(text(), "{label} (send verification code")]'
     wait_for_page_to_load(driver, By.XPATH, method_xpath)
-    driver.find_element(By.XPATH, method_xpath).click()
+    safe_click(driver, driver.find_element(By.XPATH, method_xpath))
 
-    driver.find_element(By.XPATH, SEND_CODE_BUTTON_XPATH).click()
+    safe_click(driver, driver.find_element(By.XPATH, SEND_CODE_BUTTON_XPATH))
     time.sleep(2)  # let the code-entry screen settle
 
 
@@ -190,7 +190,7 @@ def enter_verification_code_and_submit(driver: webdriver.Chrome, code: str):
             "CODE_INPUT_XPATH_CANDIDATES in driver_utils/booker.py."
         )
 
-    input_field.click()
+    safe_click(driver, input_field)
     input_field.send_keys(code)
     time.sleep(0.5)  # let Angular's form validation enable the submit button
 
@@ -202,7 +202,7 @@ def enter_verification_code_and_submit(driver: webdriver.Chrome, code: str):
             "Check debug/code_submit_button_not_found_*.png and update "
             "SUBMIT_CODE_BUTTON_CSS_SELECTOR in driver_utils/booker.py."
         )
-    submit_buttons[0].click()
+    safe_click(driver, submit_buttons[0])
 
 
 def check_for_incorrect_code_error(driver: webdriver.Chrome) -> bool:
@@ -223,7 +223,7 @@ def verify_booking_succeeded(driver: webdriver.Chrome) -> bool:
     even though the code had been rejected. Verify against the site
     itself rather than trusting the click.
     """
-    driver.find_element(By.XPATH, YOUR_UPCOMING_APPOINTMENTS_TAB_XPATH).click()
+    safe_click(driver, driver.find_element(By.XPATH, YOUR_UPCOMING_APPOINTMENTS_TAB_XPATH))
     time.sleep(2)
     body_text = driver.find_element(By.TAG_NAME, "body").text
     return NO_UPCOMING_APPOINTMENTS_TEXT not in body_text
@@ -242,7 +242,7 @@ def get_current_appointment_date(driver: webdriver.Chrome) -> Optional[str]:
     # racing it (a bare find_element here intermittently fired before the
     # post-login page had finished loading).
     wait_for_page_to_load(driver, By.XPATH, YOUR_UPCOMING_APPOINTMENTS_TAB_XPATH)
-    driver.find_element(By.XPATH, YOUR_UPCOMING_APPOINTMENTS_TAB_XPATH).click()
+    safe_click(driver, driver.find_element(By.XPATH, YOUR_UPCOMING_APPOINTMENTS_TAB_XPATH))
     time.sleep(2)
 
     body_text = driver.find_element(By.TAG_NAME, "body").text
@@ -265,7 +265,7 @@ def get_current_appointment_date(driver: webdriver.Chrome) -> Optional[str]:
 
 
 def click_book_an_appointment_tab(driver: webdriver.Chrome):
-    driver.find_element(By.XPATH, BOOK_AN_APPOINTMENT_TAB_XPATH).click()
+    safe_click(driver, driver.find_element(By.XPATH, BOOK_AN_APPOINTMENT_TAB_XPATH))
     time.sleep(1)
 
 
@@ -280,12 +280,16 @@ def start_reschedule(driver: webdriver.Chrome):
     search_for_bookings() + parse_icbc_locations_results() + click the
     office, exactly like a fresh booking.
     """
-    driver.find_element(By.XPATH, RESCHEDULE_BUTTON_XPATH).click()
+    safe_click(driver, driver.find_element(By.XPATH, RESCHEDULE_BUTTON_XPATH))
 
     try:
         wait_for_page_to_load(driver, By.XPATH, RESCHEDULE_CONFIRM_YES_XPATH)
     except Exception:
         dump_debug_info(driver, "reschedule_confirm_dialog_not_found")
         raise
-    driver.find_element(By.XPATH, RESCHEDULE_CONFIRM_YES_XPATH).click()
+    # This exact click failed live once already -- ICBC's site occasionally
+    # shows a third-party Qualtrics survey popup on top of this dialog,
+    # intercepting a plain click. safe_click() falls back to a JS click,
+    # which bypasses the overlay instead of failing on it.
+    safe_click(driver, driver.find_element(By.XPATH, RESCHEDULE_CONFIRM_YES_XPATH))
     time.sleep(3)
