@@ -1,0 +1,6 @@
+services:
+  watcher:
+    build: .
+    env_file:
+      - .env
+    restart: unless-stopped

@@ -1,0 +1,18 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Real secrets — never commit this. Copy .env.example to .env and fill
+# it in locally instead. CONFIG.py itself is safe to commit (it only
+# reads these from the environment, holds no secret values itself).
+.env
+
+# Screenshots/HTML dumped on failure for debugging
+debug/
