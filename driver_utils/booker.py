@@ -23,6 +23,7 @@ from typing import Dict, List, Optional
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
+from selenium.webdriver.support.ui import WebDriverWait
 
 from driver_utils.utils import dump_debug_info, safe_click, wait_for_page_to_load
 
@@ -243,7 +244,16 @@ def get_current_appointment_date(driver: webdriver.Chrome) -> Optional[str]:
     # post-login page had finished loading).
     wait_for_page_to_load(driver, By.XPATH, YOUR_UPCOMING_APPOINTMENTS_TAB_XPATH)
     safe_click(driver, driver.find_element(By.XPATH, YOUR_UPCOMING_APPOINTMENTS_TAB_XPATH))
-    time.sleep(2)
+
+    # The tab itself appears fast, but the booking card's content (or the
+    # "No upcoming appointments" message) is a separate, slightly-delayed
+    # render -- a fixed sleep() here raced that render once live (on
+    # Render's more variable compute) and misfired. Wait for one of the two
+    # actual outcomes to show up instead of guessing a duration.
+    WebDriverWait(driver, 15).until(
+        lambda d: NO_UPCOMING_APPOINTMENTS_TEXT in d.find_element(By.TAG_NAME, "body").text
+        or d.find_elements(By.XPATH, APPOINTMENT_DATE_CONTENT_XPATH)
+    )
 
     body_text = driver.find_element(By.TAG_NAME, "body").text
     if NO_UPCOMING_APPOINTMENTS_TEXT in body_text:
