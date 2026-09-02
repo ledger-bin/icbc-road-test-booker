@@ -240,7 +240,15 @@ def poll_commands(state: BotState, stop_event: threading.Event):
         try:
             updates = _get_updates(offset=offset, timeout=20)
         except Exception as e:
-            print(f"(!) Telegram polling error: {e}")
+            if "409" in str(e):
+                # Expected during a rolling deploy: the old and new
+                # container briefly overlap, and Telegram only allows one
+                # outstanding long-poll per bot token -- resolves itself
+                # within seconds once the old container's connection
+                # actually drops. Not a real problem.
+                print(f"(i) Telegram getUpdates conflict (likely an overlapping deploy) -- retrying: {e}")
+            else:
+                print(f"(!) Telegram polling error: {e}")
             time.sleep(5)
             continue
 
